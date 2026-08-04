@@ -1,0 +1,13 @@
+{
+  "execution_mode": "Run on Radeon Cloud via SSH",
+  "manual_frames": "",
+  "batch_pairs": 2,
+  "host": "<RADEON_CLOUD_HOST>",
+  "port": 22,
+  "user": "root",
+  "key_path": "C:\\Users\\<USER>\\.ssh\\factoryfly_amd",
+  "remote_root": "/workspace/factoryfly-radeon",
+  "remote_python": "/workspace/factoryfly-radeon/.venv-rocm/bin/python",
+  "dinov2_repo": "/workspace/factoryfly-radeon/vendor/dinov2",
+  "checkpoint": "/workspace/factoryfly-radeon/vendor/checkpoints/dinov2_vits14_pretrain.pth"
+}

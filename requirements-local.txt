@@ -1,0 +1,4 @@
+streamlit>=1.44,<2
+numpy>=1.26,<3
+opencv-python>=4.10,<5
+Pillow>=10,<13
