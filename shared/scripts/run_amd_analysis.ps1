@@ -11,6 +11,9 @@
     [ValidateSet("package", "cloud")]
     [string]$Mode = "package",
 
+    [ValidateSet("current", "preview")]
+    [string]$WorkspaceName = "current",
+
     [string]$ManualFrames = "",
 
     [int]$BatchPairs = 2,
@@ -223,7 +226,7 @@ $AnalysisRoot = Join-Path (
     Join-Path (
         Join-Path $InspectionRoot "change_detection"
     ) $BaselineId
-) "amd_analysis\current"
+) ("amd_analysis\" + $WorkspaceName)
 $PackageDir = Join-Path $AnalysisRoot "package"
 $PackageZip = Join-Path $AnalysisRoot "factoryfly_amd_package.zip"
 $ResultsDir = Join-Path $AnalysisRoot "results"

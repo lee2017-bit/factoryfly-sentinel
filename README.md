@@ -4,132 +4,128 @@
 
 FactoryFly Sentinel converts repeated human-operated drone inspections into localized visual-change evidence, routes uncertain observations to targeted reinspection, and produces a self-contained report for human review.
 
-This repository accompanies the **AMD AI DevMaster Hackathon 2026 — Track 3** submission.
+This repository accompanies the **AMD AI DevMaster Hackathon 2026 - Track 3** submission.
 
 > **Scope:** FactoryFly reports observed visual changes and evidence quality. It does not decide whether a change is a defect, safety issue, or acceptable operation. A human reviewer assigns the operational disposition.
 
----
+## 1. What this repository demonstrates
 
-## 1. Reproducibility Overview
+FactoryFly is a 13-stage, hybrid local/cloud workflow:
 
-FactoryFly uses a hybrid execution model:
+1. Build a COLMAP baseline from a human-guided reference flight.
+2. Preserve sparse structure and camera poses as relative spatial memory.
+3. Register a later inspection video.
+4. Localize inspection frames inside the fixed baseline coordinate system.
+5. Review localization coverage and trajectory continuity.
+6. Retrieve nearby baseline cameras and refine image geometry.
+7. Separate geometry-ready pairs from poor alignments.
+8. Run DINOv2 semantic-change inference on an AMD Radeon GPU through ROCm.
+9. Review heatmaps, scores, and runtime metadata.
+10. Triage stable, confirmed, and geometrically uncertain evidence.
+11. Generate a targeted reinspection mission.
+12. Reacquire and analyze the uncertain target.
+13. Generate a self-contained HTML evidence report.
 
-- **Windows workstation**
-  - Streamlit UI
-  - Video frame extraction
-  - COLMAP baseline reconstruction
-  - Inspection localization
-  - SIFT/RANSAC/homography pair refinement
-  - Triage, reinspection mission generation, and reporting
+The system is **human-guided**. It does not autonomously fly the drone or produce a certified collision-free route.
 
-- **AMD Radeon Cloud**
-  - PyTorch with ROCm
-  - DINOv2 ViT-S/14 inference
-  - Relative semantic-change heatmaps and p95 score generation
+## 2. Execution architecture
 
-The complete workflow contains 13 stages:
+### Windows workstation
 
-1. Baseline Registration
-2. Baseline Spatial Memory
-3. Inspection Registration
-4. Spatial Localization
-5. Localization Result
-6. Pair Refinement
-7. Pair Result
-8. AMD Analysis
-9. AMD Result
-10. Change Triage
-11. Reinspection Mission
-12. Reinspection Analysis
-13. Final Report
+- Streamlit UI
+- FFmpeg frame extraction
+- COLMAP sparse reconstruction and image registration
+- SIFT, Fundamental Matrix RANSAC, Homography RANSAC, overlap, and reprojection checks
+- Change triage
+- Reinspection mission generation
+- Final JSON, Markdown, and self-contained HTML reporting
 
-Two verification paths are provided:
+### AMD Radeon Cloud
 
-### Path A — Full reproduction
+- Python 3.12
+- PyTorch 2.9.1 with ROCm 7.2.1
+- DINOv2 ViT-S/14 inference
+- Relative semantic-change heatmaps and p95 scores
+- GPU runtime and memory measurements
 
-Run the complete workflow from the baseline, inspection, telemetry, and reinspection source files.
+No local CUDA GPU is required for DINOv2 inference.
 
-### Path B — Result inspection
-
-Launch the UI and open the included self-contained sample report under `expected_results/`. This verifies the submitted evidence format without rerunning COLMAP or Radeon Cloud inference.
-
-Path B is supplementary. Path A is the full reproduction procedure.
-
----
-
-## 2. Repository Layout
+## 3. Repository layout
 
 ```text
 factoryfly-sentinel/
 ├─ app.py
-├─ start_factoryfly.bat
-├─ stop_factoryfly.bat
+├─ README.md
+├─ README_KO.md
 ├─ requirements-local.txt
 ├─ requirements-rocm.txt
-├─ README.md
+├─ start_factoryfly.bat
+├─ stop_factoryfly.bat
 ├─ config/
 │  ├─ amd_cloud.example.json
 │  └─ colmap.example.json
 ├─ scripts/
-│  ├─ configure_local_paths.ps1
+│  ├─ configure_colmap.ps1
+│  ├─ create_factoryfly_shortcut.ps1
 │  ├─ setup_local.ps1
 │  ├─ setup_radeon_cloud.sh
 │  └─ verify_radeon_cloud.sh
 ├─ shared/
 │  ├─ config/
 │  └─ scripts/
-├─ baseline/
 ├─ sample_data/
-│  └─ README.md
+│  ├─ README.md
+│  └─ raw/
 ├─ expected_results/
 │  └─ final_change_report.html
-└─ docs/
-   ├─ FactoryFly_Sentinel_Technical_Report.pdf
-   └─ figures/
+├─ docs/
+│  ├─ FactoryFly_Sentinel_Technical_Report.pdf
+│  ├─ FactoryFly_Sentinel_Technical_Report.md
+│  └─ CLEAN_REPRODUCTION_VALIDATION.md
+└─ submission/
+   └─ demo_video_link.md
 ```
 
-Derived data such as extracted frames, COLMAP databases, sparse models, AMD packages, logs, and reports are generated under the selected Baseline ID and Inspection ID.
+Derived frames, COLMAP databases, sparse models, AMD packages, logs, and reports are generated under the selected Baseline ID and Inspection ID. They are intentionally excluded from the public source package.
 
----
+## 4. Validated environment
 
-## 3. Tested Configuration
+### Local workstation
 
-### 3.1 Local workstation
-
-- Windows 10 or Windows 11
+- Windows 10/11
 - Windows PowerShell 5.1 or later
-- Python 3.12 or later
-- Streamlit 1.44 or later, below 2.0
-- OpenCV 4.10 or later
-- NumPy 1.26 or later
-- FFmpeg available on `PATH`
-- OpenSSH client with `ssh` and `scp`
-- COLMAP 4.1.1
-- Tested COLMAP launcher path: `C:\Tools\COLMAP\COLMAP.bat`
-
-The captured prototype run used a Windows workstation. A local CUDA GPU is not required for DINOv2 because the semantic inference stage runs on Radeon Cloud. COLMAP performance depends on the local installation and hardware.
-
-### 3.2 AMD Radeon Cloud
-
-- AMD Radeon Cloud instance
-- Linux environment with ROCm 7.2.1
 - Python 3.12
-- PyTorch 2.9.1 with ROCm 7.2.1
-- TorchVision 0.24.0 with ROCm 7.2.1
-- TorchAudio 2.9.0 with ROCm 7.2.1
-- Triton 3.5.1 with ROCm 7.2.1
-- NumPy 1.26.4
-- OpenCV Headless 4.10.0.84
-- Open-source DINOv2 repository
-- `dinov2_vits14_pretrain.pth` checkpoint
+- Streamlit 1.44 or later and below 2.0
+- NumPy 1.26.x
+- OpenCV 4.10.x
+- FFmpeg on `PATH`
+- OpenSSH client: `ssh` and `scp`
+- COLMAP 4.1.1
+- Tested COLMAP launcher: `C:\Tools\COLMAP\COLMAP.bat`
 
-The actual Radeon GPU model is detected and printed by `scripts/verify_radeon_cloud.sh`.
+### Clean Radeon Cloud validation
 
----
+The final clean run reported:
 
-## 4. Required Input Data
+```text
+ROCM_OK
+GPU_OK
+DINOV2_OK
 
-Full reproduction requires four source files:
+Python : 3.12.3
+PyTorch: 2.9.1+rocm7.2.1
+HIP    : 7.2.53211
+GPU    : AMD Radeon Graphics
+VRAM   : 47.98 GiB
+NumPy  : 1.26.4
+OpenCV : 4.10.0
+```
+
+The displayed GPU name may be generic in the cloud container. `GPU_OK` and the ROCm/HIP values are the validation markers used by the project.
+
+## 5. Required input data
+
+The UI expects these paths for a full run:
 
 ```text
 sample_data/raw/
@@ -139,61 +135,68 @@ sample_data/raw/
 └─ reinspection.mp4
 ```
 
-The demonstration data were captured by the participant in a private indoor environment.
-
-- `baseline.mp4`: reference scene before the demonstrated changes
+- `baseline.mp4`: reference flight before the demonstrated visual changes
 - `inspection.mp4`: repeated inspection containing visible changes
-- `inspection_telemetry.txt`: matching DJI flight-record telemetry
-- `reinspection.mp4`: targeted follow-up view of the uncertain evidence location
+- `reinspection.mp4`: targeted follow-up recording of an uncertain evidence location
+- `inspection_telemetry.txt`: a file registered with the inspection input manifest
 
-See `sample_data/README.md` for packaging and privacy guidance.
+### Important telemetry limitation
 
----
+The DJI flight-record file may use a `.txt` extension while containing binary data. In v7.3.13, FactoryFly **does not parse telemetry and does not use it for localization**. The registration stage only records the telemetry filename, size, modification time, and SHA256 hash. Visual localization is performed by COLMAP.
 
-## 5. Local Installation
+Therefore:
 
-Open **Windows PowerShell**.
+- No DJI API key is required.
+- Do not assume the file is human-readable text.
+- Do not publish a raw DJI flight record if it may contain GPS, device, or personal identifiers.
+- A privacy-safe placeholder file is sufficient to exercise the current registration code, but it does not reproduce flight telemetry because telemetry is not consumed by the pipeline.
 
-### 5.1 Clone or extract the repository
+See `sample_data/README.md` for release and privacy guidance.
 
-```powershell
-git clone <YOUR_FACTORYFLY_REPOSITORY_URL>
-cd factoryfly-sentinel
-```
+## 6. Quick result inspection
 
-A ZIP extraction is also valid.
-
-### 5.2 Install COLMAP
-
-Install COLMAP and confirm that the launcher exists.
-
-Tested path:
+Open the included report:
 
 ```text
-C:\Tools\COLMAP\COLMAP.bat
+expected_results/final_change_report.html
 ```
 
-Verify:
+The file is self-contained and includes embedded evidence images and interactive 3D mission context. The validated final summary is:
+
+```text
+Analyzed pairs             : 13
+Stable cleared             : 7
+Confirmed findings         : 4
+Reinspections              : 1
+Cleared after reinspection : 0
+Unresolved                 : 0
+```
+
+The targeted follow-up result is:
+
+```text
+Geometry         : good
+Initial p95      : 0.865
+Reinspection p95 : 0.859
+Conclusion       : Persistent visual change confirmed
+```
+
+These p95 values are relative semantic-change scores, not defect probabilities.
+
+## 7. Local installation
+
+Open Windows PowerShell from the repository root.
+
+### 7.1 Install and verify prerequisites
 
 ```powershell
 & "C:\Tools\COLMAP\COLMAP.bat" -h
-```
-
-### 5.3 Install FFmpeg and OpenSSH
-
-Verify:
-
-```powershell
 ffmpeg -version
 ssh -V
 scp
 ```
 
-On Windows 10/11, OpenSSH Client can be enabled from **Optional Features**.
-
-### 5.4 Run the local setup script
-
-From the repository root:
+### 7.2 Automated local setup
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
@@ -202,151 +205,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -ColmapBat "C:\Tools\COLMAP\COLMAP.bat"
 ```
 
-This script:
+The script creates `.venv-vision`, installs local dependencies, checks required executables, and updates portable project/COLMAP paths.
 
-- creates `.venv-vision`
-- installs `requirements-local.txt`
-- validates FFmpeg, COLMAP, SSH, and SCP
-- validates the portable repository root used by `app.py`
-- updates the default COLMAP path in the two pipeline scripts
-
-### 5.5 Manual installation alternative
-
-```powershell
-py -3.12 -m venv .venv-vision
-
-.\.venv-vision\Scripts\python.exe `
-  -m pip install --upgrade pip
-
-.\.venv-vision\Scripts\python.exe `
-  -m pip install -r requirements-local.txt
-
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File ".\scripts\configure_colmap.ps1" `
-  -ProjectRoot "$PWD" `
-  -ColmapBat "C:\Tools\COLMAP\COLMAP.bat"
-```
-
----
-
-## 6. AMD Radeon Cloud Setup
-
-### 6.1 Prepare an SSH key on Windows
-
-```powershell
-ssh-keygen -t ed25519 `
-  -f "$HOME\.ssh\factoryfly_amd" `
-  -C "factoryfly-radeon-cloud"
-```
-
-Do not add the private key to Git.
-
-Display the public key:
-
-```powershell
-Get-Content "$HOME\.ssh\factoryfly_amd.pub"
-```
-
-Add the public key to `/root/.ssh/authorized_keys` in the Radeon Cloud instance.
-
-### 6.2 Upload and run the setup script
-
-From Windows:
-
-```powershell
-scp -P <PORT> `
-  -i "$HOME\.ssh\factoryfly_amd" `
-  ".\scripts\setup_radeon_cloud.sh" `
-  ".\scripts\verify_radeon_cloud.sh" `
-  root@<HOST>:/workspace/
-```
-
-Run it:
-
-```powershell
-ssh -p <PORT> `
-  -i "$HOME\.ssh\factoryfly_amd" `
-  root@<HOST> `
-  "bash /workspace/setup_radeon_cloud.sh"
-```
-
-The default remote paths created by the script are:
-
-```text
-Remote root:
-  /workspace/factoryfly-radeon
-
-ROCm Python:
-  /workspace/factoryfly-radeon/.venv-rocm/bin/python
-
-DINOv2 repository:
-  /workspace/factoryfly-radeon/vendor/dinov2
-
-DINOv2 checkpoint:
-  /workspace/factoryfly-radeon/vendor/checkpoints/dinov2_vits14_pretrain.pth
-```
-
-### 6.3 Verify Radeon GPU access
-
-```powershell
-ssh -p <PORT> `
-  -i "$HOME\.ssh\factoryfly_amd" `
-  root@<HOST> `
-  "bash /workspace/factoryfly-radeon/scripts/verify_radeon_cloud.sh"
-```
-
-Expected markers:
-
-```text
-ROCM_OK
-GPU_OK
-DINOV2_OK
-```
-
-The command also prints the detected GPU, PyTorch version, HIP version, Python version, and checkpoint path.
-
----
-
-## 7. Configure Radeon Cloud in FactoryFly
-
-Start FactoryFly first, then enter the following values in **Step 8 — AMD Analysis**.
-
-```text
-Execution mode:
-  Run on Radeon Cloud via SSH
-
-SSH host:
-  <HOST DISPLAYED BY RADEON CLOUD>
-
-SSH port:
-  <PORT DISPLAYED BY RADEON CLOUD>
-
-SSH user:
-  root
-
-Private key:
-  C:\Users\<USER>\.ssh\factoryfly_amd
-
-Remote project root:
-  /workspace/factoryfly-radeon
-
-Remote ROCm Python:
-  /workspace/factoryfly-radeon/.venv-rocm/bin/python
-
-DINOv2 repository:
-  /workspace/factoryfly-radeon/vendor/dinov2
-
-Checkpoint:
-  /workspace/factoryfly-radeon/vendor/checkpoints/dinov2_vits14_pretrain.pth
-```
-
-Host and port may change when a cloud instance is recreated. Never commit the real endpoint or private-key path to the public repository.
-
----
-
-## 8. Launch FactoryFly
-
-From the repository root:
+### 7.3 Launch FactoryFly
 
 ```powershell
 .\.venv-vision\Scripts\python.exe `
@@ -368,286 +229,224 @@ The application header should show:
 FactoryFly Sentinel v7.3.13
 ```
 
-A convenience launcher may also be used:
+A convenience launcher is also included:
 
 ```powershell
 .\start_factoryfly.bat
 ```
 
----
+## 8. Create a clean Radeon Cloud environment
 
-## 9. Full Reproduction Procedure
+The validated run used a **new Template and a new Instance**, not a previously configured workspace.
 
-### 9.1 Start a clean run
-
-Expand **Start New Demo Run**.
-
-Recommended IDs:
+### 8.1 Suggested Template settings
 
 ```text
-Baseline ID:
-  baseline_reproduction_001
-
-Inspection ID:
-  inspection_reproduction_001
+Title           : FactoryFly Sentinel
+Category        : Computer Vision
+Container image : AMD OneClick Base (ROCm 7.2.1 / Python 3.12)
+GitHub Repo URL : https://github.com/lee2017-bit/factoryfly-sentinel
+Branch          : main
+Notebook Path   : blank
+SSH Access      : enabled
+Workspace       : Local SSD only
 ```
 
-Confirm the reset and click **Start New Demo Run**.
+Host and external SSH port are assigned per instance and must never be committed.
 
-This operation resets the selected run state while preserving saved Radeon Cloud connection settings and previous archived runs.
+### 8.2 Open Notebook Terminal first
 
-### Step 1 — Baseline Registration
+After launching a new Instance, open its Notebook/Terminal once. Radeon Cloud Templates may place the repository under an instance-specific path such as `/workspace/template-repos/.../repo`.
 
-1. Select **Register local MP4 path**.
-2. Enter:
+Locate the checkout without hardcoding a template number:
 
-   ```text
-   <REPOSITORY>\sample_data\raw\baseline.mp4
-   ```
+```bash
+REPO="$(find /workspace/template-repos \
+  -type f \
+  -path '*/repo/scripts/setup_radeon_cloud.sh' \
+  -print -quit 2>/dev/null | sed 's#/scripts/setup_radeon_cloud.sh##')"
 
-3. Set **Frame sampling FPS** to `4`.
-4. Click **Build 3D Baseline**.
+test -n "$REPO"
+cd "$REPO"
+pwd
+ls app.py scripts/setup_radeon_cloud.sh scripts/verify_radeon_cloud.sh
+```
 
-Expected outputs include:
+If the Template did not check out the repository, clone it into `/workspace` and enter the repository root.
+
+### 8.3 Install ROCm/DINOv2 and start SSH
+
+From the repository root inside the Radeon Notebook Terminal:
+
+```bash
+bash scripts/setup_radeon_cloud.sh /workspace/factoryfly-radeon \
+  2>&1 | tee /workspace/factoryfly_setup.log
+```
+
+The setup script:
+
+- installs/starts `openssh-server`
+- creates `/workspace/factoryfly-radeon/.venv-rocm`
+- installs validated ROCm wheels
+- obtains the DINOv2 source and ViT-S/14 checkpoint
+- works around the Radeon image's known public-GitHub CA-chain issue with a secure-first, mirror-second, command-scoped fallback
+- copies the verification script into the remote project root
+
+The script does **not** disable TLS verification globally.
+
+Expected final message:
 
 ```text
-baseline/<BASELINE_ID>/
-├─ frames/
-├─ reconstruction/
-├─ poses/
-├─ reports/
-└─ logs/
+[PASS] Radeon Cloud environment installed
 ```
 
-### Step 2 — Baseline Spatial Memory
+### 8.4 Verify Radeon access
 
-Review:
+```bash
+bash /workspace/factoryfly-radeon/scripts/verify_radeon_cloud.sh \
+  /workspace/factoryfly-radeon \
+  2>&1 | tee /workspace/factoryfly_verify.log
+```
 
-- extracted frame count
-- registered camera count
-- registration rate
-- sparse point count
-- camera trajectory
-- active-baseline metadata
+Required markers:
 
-Activate or continue with the completed baseline.
+```text
+ROCM_OK
+GPU_OK
+DINOV2_OK
+```
 
-### Step 3 — Inspection Registration
+### 8.5 Verify external SSH from Windows
+
+```powershell
+Test-NetConnection <HOST> -Port <PORT>
+```
+
+Expected:
+
+```text
+TcpTestSucceeded : True
+```
+
+Then connect using the private key that remains on the Windows machine:
+
+```powershell
+ssh `
+  -i "$HOME\.ssh\factoryfly_amd" `
+  -p <PORT> `
+  -o IdentitiesOnly=yes `
+  root@<HOST>
+```
+
+Only the **public key** belongs in Radeon Cloud. Never upload or paste the private key.
+
+## 9. Configure Step 8 - AMD Analysis
+
+Use the current endpoint shown by the active Radeon Cloud instance:
+
+```text
+Execution mode:
+  Run on Radeon Cloud via SSH
+
+SSH host:
+  <CURRENT HOST>
+
+SSH port:
+  <CURRENT PORT>
+
+SSH user:
+  root
+
+Private key:
+  C:\Users\<USER>\.ssh\factoryfly_amd
+
+Remote project root:
+  /workspace/factoryfly-radeon
+
+Remote ROCm Python:
+  /workspace/factoryfly-radeon/.venv-rocm/bin/python
+
+Remote DINOv2 repository:
+  /workspace/factoryfly-radeon/vendor/dinov2
+
+Remote checkpoint:
+  /workspace/factoryfly-radeon/vendor/checkpoints/dinov2_vits14_pretrain.pth
+```
+
+Click **Save SSH Settings** before running inference. The saved configuration stores the local key path, not the private-key contents.
+
+## 10. Full reproduction procedure
+
+Use new IDs for a clean run, for example:
+
+```text
+Baseline ID   : baseline_reproduction_001
+Inspection ID : inspection_reproduction_001
+```
+
+### Step 1 - Baseline Registration
+
+- Select the local `baseline.mp4`.
+- Set **Frame sampling FPS** to `4`.
+- Click **Build 3D Baseline**.
+
+Validated sample result:
+
+```text
+Sampled frames     : 158
+Registered cameras : 91
+Registration rate  : 57.59%
+Sparse 3D points   : 5,438
+```
+
+COLMAP sparse-point count can vary slightly across versions and hardware.
+
+### Step 2 - Baseline Spatial Memory
+
+Review the sparse model, camera trajectory, registration statistics, and active-baseline metadata. Coordinates are reconstructed relative units, not calibrated metres.
+
+### Step 3 - Inspection Registration
 
 Register:
 
 ```text
-Inspection video:
-  <REPOSITORY>\sample_data\raw\inspection.mp4
-
-Inspection telemetry:
-  <REPOSITORY>\sample_data\raw\inspection_telemetry.txt
+Inspection video     : sample_data/raw/inspection.mp4
+Inspection telemetry : sample_data/raw/inspection_telemetry.txt
 ```
 
-Click **Register Inspection Inputs**.
+This stage stores input metadata and SHA256 hashes. It does not parse telemetry or alter the source files.
 
-The registration stage stores SHA256 hashes and input metadata. Source files are not overwritten.
+### Step 4 - Spatial Localization
 
-### Step 4 — Spatial Localization
+- Set **Inspection frame sampling FPS** to `1`.
+- Click **Run Spatial Localization**.
 
-1. Set **Inspection frame sampling FPS** to `4`.
-2. Click **Run Spatial Localization**.
-
-The active baseline is copied to an isolated working directory before inspection images are registered. The baseline source model is not modified.
-
-### Step 5 — Localization Result
-
-Review:
-
-- input and registered frame counts
-- localization percentage
-- longest continuous registered run
-- failed frames
-- baseline and inspection trajectories
-
-### Step 6 — Pair Refinement
-
-1. Set **Top-K baseline candidates per inspection frame** to `5`.
-2. Click **Run Pair Refinement**.
-
-The refinement stage evaluates candidate pairs with SIFT, Fundamental Matrix RANSAC, Homography RANSAC, overlap, and reprojection quality.
-
-### Step 7 — Pair Result
-
-Review:
-
-- Excellent / Good / Usable / Poor quality counts
-- AMD-ready pair count
-- high-confidence count
-- median reprojection error
-- candidate and refined image comparisons
-
-Only non-poor geometry is routed to AMD analysis.
-
-### Step 8 — AMD Analysis
-
-1. Select **Run on Radeon Cloud via SSH**.
-2. Load or enter the Radeon Cloud settings from Section 7.
-3. Leave **Manual frames** empty for the automatic-only reproduction.
-4. Set **Batch pairs** to `2`.
-5. Click **Run AMD Analysis**.
-
-FactoryFly packages geometry-ready pairs, transfers them through SCP, executes DINOv2 with PyTorch + ROCm, and downloads the result archive.
-
-### Step 9 — AMD Result
-
-Review:
-
-- baseline reference
-- inspection view
-- warped baseline
-- DINOv2 relative-change overlay
-- per-pair score statistics
-- AMD runtime and benchmark metadata
-
-Warm heatmap regions represent relative semantic difference inside the geometrically valid overlap. They are not calibrated defect probabilities.
-
-### Step 10 — Change Triage
-
-Set:
+Validated result:
 
 ```text
-Confirmed-change p95 threshold:
-  0.62
-
-Uncertain-change p95 threshold:
-  0.70
+Input frames             : 47
+Registered frames        : 18
+Registration rate        : 38.3%
+Failed frames            : 29
+Longest continuous run   : 16
 ```
 
-Click **Generate Change Triage** or **Regenerate Change Triage**.
+The baseline source model remains fixed; inspection poses are registered into an isolated working copy.
 
-Expected routing for the submitted demonstration:
+### Step 5 - Localization Result
 
-```text
-Confirmed Change:
-  3
+Review the baseline/inspection trajectories, failed-frame list, registration timeline, and spatial coverage.
 
-Needs Reinspection:
-  1
+### Step 6 - Pair Refinement
 
-Automatically Cleared:
-  10
-```
+- Set **Top-K baseline candidates per inspection frame** to `5`.
+- Run pair refinement with overwrite enabled when repeating the stage.
 
-These values are evidence-routing thresholds for the demonstration, not calibrated probabilities.
-
-### Step 11 — Reinspection Mission
-
-Review the generated mission:
-
-```text
-Mission:
-  R-F000021
-
-Inspection evidence cluster:
-  frames 21-23
-
-Matched baseline area:
-  frames 81-82
-```
-
-Review the interactive spatial map and download `reinspection_missions.json` if required.
-
-Click **Continue to Reinspection Analysis**.
-
-### Step 12 — Reinspection Analysis
-
-Enter:
-
-```text
-<REPOSITORY>\sample_data\raw\reinspection.mp4
-```
-
-Run the reinspection analysis for the generated mission.
-
-Expected result:
-
-```text
-Geometry:
-  good
-
-Initial p95:
-  0.866
-
-Reinspection p95:
-  0.860
-
-Conclusion:
-  Persistent visual change confirmed
-```
-
-The reinspection stage can use direct baseline-to-reinspection geometry or a change-tolerant inspection bridge when the physical appearance changed too much for a direct match.
-
-### Step 13 — Final Report
-
-Click **Save Final Change Report**.
-
-FactoryFly generates:
-
-```text
-final_change_report.json
-final_change_report.md
-final_change_report.html
-```
-
-The HTML report is self-contained and can be opened without the Streamlit server.
-
-Expected final summary:
-
-```text
-Analyzed pairs:
-  18
-
-Stable cleared:
-  10
-
-Confirmed findings:
-  4
-
-Reinspections:
-  1
-
-Cleared after reinspection:
-  0
-
-Unresolved:
-  0
-```
-
----
-
-## 10. Expected Demonstration Metrics
-
-The submitted run produced the following dataset-specific results.
-
-### Baseline
+Validated result:
 
 | Metric | Result |
 |---|---:|
-| Sampled frames | 158 |
-| Registered cameras | 91 |
-| Registration rate | 57.59% |
-| Sparse 3D points | 5,499 |
-
-### Inspection localization
-
-| Metric | Result |
-|---|---:|
-| Input frames | 47 |
-| Registered frames | 18 |
-| Registration rate | 38.3% |
-| Longest continuous run | 16 frames |
-
-### Pair refinement
-
-| Metric | Result |
-|---|---:|
-| Candidate pairs evaluated | 90 |
+| Candidate pairs | 90 |
 | Excellent | 3 |
 | Good | 5 |
 | Usable | 4 |
@@ -656,164 +455,185 @@ The submitted run produced the following dataset-specific results.
 | High confidence | 8 |
 | Median reprojection error | 0.962 px |
 
-### Final evidence result
+### Step 7 - Pair Result
 
-| Metric | Result |
-|---|---:|
-| Analyzed evidence entries | 18 |
-| Stable cleared | 10 |
-| Confirmed findings | 4 |
-| Reinspections | 1 |
-| Unresolved | 0 |
+Review geometry classes and candidate comparisons. Non-poor pairs are routed automatically to AMD analysis. Poor pairs are not treated as confirmed evidence without a reviewer decision.
 
-COLMAP output can vary slightly across versions and hardware. The important reproducibility conditions are:
+### Step 8 - AMD Analysis
 
-- the baseline model is successfully constructed
-- inspection frames are localized in the same coordinate system
-- geometry-ready pairs are generated
-- DINOv2 executes on AMD Radeon GPU through ROCm
-- one uncertain target is routed to reinspection with the submitted thresholds
-- the reinspection target is reacquired
-- the final report is generated
-
----
-
-## 11. Quick Result Inspection
-
-Open:
+Use:
 
 ```text
-expected_results/final_change_report.html
+Automatic geometry-ready pairs : all 12 available
+Reviewer-selected pairs        : at least one high-change, poor-geometry pair
+Visual Borderline Review       : select the poor-geometry pair manually
+Batch pairs                    : 2
 ```
 
-Verify that it contains:
+The reviewer-selected pair is necessary to validate the targeted-reinspection branch. Do **not** hardcode a frame number in general reproduction instructions; frame identifiers are dataset/run dependent.
 
-- `Reinspections: 1`
-- `Unresolved: 0`
-- `Source: targeted_reinspection`
-- `Geometry: good`
-- `Initial p95: 0.866`
-- `Reinspection p95: 0.860`
+FactoryFly v7.3.13 final source accepts both `current` and `preview` AMD workspaces. This includes the validated `WorkspaceName` PowerShell parameter fix.
 
-This report contains embedded images and interactive 3D data.
+Click **Run AMD Analysis**. Expected stages:
 
----
+```text
+1 / 4 - Prepare privacy-filtered AMD package
+2 / 4 - Create Radeon Cloud run directory
+3 / 4 - Upload and execute AMD DINOv2 analysis
+Run ROCm DINOv2 on Radeon Cloud
+4 / 4 - Download AMD results
+```
+
+Validated Radeon result:
+
+```text
+Analyzed pairs  : 13
+Automatic pairs : 12
+Reviewer pairs  : 1
+Batch pairs     : 2
+Mean ms/pair    : 4.75
+Pairs/second    : 210.46
+Peak GPU memory : 133.7 MB
+```
+
+`xFormers is not available` is a non-fatal optimization warning in this environment.
+
+### Step 9 - AMD Result
+
+Review the baseline, inspection, warped baseline, DINOv2 overlay, p95/p99/mean scores, valid-patch counts, and benchmark JSON.
+
+Warm colors indicate greater relative semantic difference inside valid overlap. They are not calibrated defect probabilities or severity scores.
+
+### Step 10 - Change Triage
+
+Set:
+
+```text
+Confirmed-change p95 threshold : 0.62
+Uncertain-change p95 threshold : 0.70
+```
+
+Validated initial routing:
+
+```text
+Confirmed change clusters : 3
+Needs reinspection        : 1
+Automatically cleared     : 7
+```
+
+The 13 analyzed image pairs are consolidated into localized evidence clusters. Therefore the triage route counts do not have to sum to the raw pair count.
+
+### Step 11 - Reinspection Mission
+
+Generate the mission and review:
+
+- the target baseline reference camera position
+- the baseline and inspection trajectories
+- approximate sparse spatial structure
+- relative Right/Left, Straight/Back, and Up/Down directions
+
+Mission IDs, frame numbers, and evidence-cluster numbers are generated from the current run. They must not be hardcoded in the README.
+
+### Step 12 - Reinspection Analysis
+
+Select `sample_data/raw/reinspection.mp4` and run the generated mission.
+
+Validated result:
+
+```text
+Geometry         : good
+Initial p95      : 0.865
+Reinspection p95 : 0.859
+Conclusion       : Persistent visual change confirmed
+```
+
+Reacquisition may use either direct baseline-to-reinspection geometry or a change-tolerant bridge through the initial inspection view.
+
+### Step 13 - Final Report
+
+Generate the consolidated report. FactoryFly produces JSON, Markdown, and self-contained HTML outputs.
+
+Validated final summary:
+
+```text
+Analyzed pairs             : 13
+Stable cleared             : 7
+Confirmed findings         : 4
+Reinspections              : 1
+Cleared after reinspection : 0
+Unresolved                 : 0
+```
+
+The four confirmed findings consist of three initial confirmed evidence clusters plus one persistent change confirmed after targeted reinspection.
+
+## 11. Reproducibility acceptance criteria
+
+The run is considered successful when:
+
+- the baseline sparse model is constructed
+- inspection frames are localized in the same coordinate system
+- pair refinement produces geometry-ready comparisons
+- `ROCM_OK`, `GPU_OK`, and `DINOV2_OK` are reported on a new Radeon instance
+- 12 automatic geometry-ready pairs and at least one reviewer-selected poor-geometry pair are analyzed
+- one geometrically uncertain high-change target is routed to reinspection
+- the target is reacquired with usable geometry
+- the self-contained final report is generated
+
+Minor variation in COLMAP point count, exact frame IDs, scores, and runtime is expected across hardware and software builds.
 
 ## 12. Troubleshooting
 
-### Streamlit is slow after a long session
+### External SSH port times out
 
-```powershell
-Get-NetTCPConnection `
-  -LocalPort 8501 `
-  -State Listen `
-  -ErrorAction SilentlyContinue |
-ForEach-Object {
-    Stop-Process -Id $_.OwningProcess -Force
-}
+If ping succeeds but `Test-NetConnection <HOST> -Port <PORT>` is false, open the Radeon Notebook Terminal and run the setup script. It installs and starts `sshd`.
 
-.\.venv-vision\Scripts\python.exe `
-  -m streamlit cache clear
-```
-
-Restart the application.
-
-### COLMAP cannot be found
-
-Confirm:
-
-```powershell
-Test-Path "C:\Tools\COLMAP\COLMAP.bat"
-```
-
-Then rerun:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File ".\scripts\configure_local_paths.ps1" `
-  -ProjectRoot "$PWD" `
-  -ColmapBat "C:\Tools\COLMAP\COLMAP.bat"
-```
-
-### FFmpeg cannot be found
-
-```powershell
-Get-Command ffmpeg
-```
-
-Add the FFmpeg `bin` directory to `PATH`, or provide the executable path when running the backend PowerShell script directly.
-
-### SSH connection fails
-
-Verify the current endpoint:
-
-```powershell
-Test-NetConnection <HOST> -Port <PORT>
-```
-
-Then:
-
-```powershell
-ssh -p <PORT> `
-  -i "$HOME\.ssh\factoryfly_amd" `
-  -o IdentitiesOnly=yes `
-  root@<HOST> `
-  "echo SSH_OK"
-```
-
-Cloud host and port can change after instance recreation.
-
-### ROCm is not visible
-
-On Radeon Cloud:
+Verify inside the instance:
 
 ```bash
-/workspace/factoryfly-radeon/.venv-rocm/bin/python - <<'PY'
-import torch
-print("torch:", torch.__version__)
-print("HIP:", torch.version.hip)
-print("available:", torch.cuda.is_available())
-print("GPU:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "N/A")
-PY
+pgrep -a sshd
+ss -lntp | grep ':22'
 ```
 
-### DINOv2 checkpoint is missing
+### GitHub certificate verification fails in Radeon Cloud
 
-Expected path:
+The final setup script tries:
+
+1. official GitHub with the system CA bundle
+2. the Radeon Cloud Git mirror
+3. a command-scoped insecure fallback only for the public DINOv2 source/checkpoint when enabled
+
+It never writes a global `http.sslVerify=false` setting. To disable the fallback:
+
+```bash
+FACTORYFLY_ALLOW_INSECURE_TLS_FALLBACK=0 \
+  bash scripts/setup_radeon_cloud.sh /workspace/factoryfly-radeon
+```
+
+### `WorkspaceName` is not recognized
+
+Use the final source version of:
 
 ```text
-/workspace/factoryfly-radeon/vendor/checkpoints/dinov2_vits14_pretrain.pth
+shared/scripts/run_amd_analysis.ps1
 ```
 
-Rerun `setup_radeon_cloud.sh`.
+It defines `WorkspaceName` with `current` and `preview` values. Earlier v3 packaging omitted this parameter.
 
 ### No reinspection mission is generated
 
-Confirm that Step 10 uses:
+A threshold change cannot create uncertain evidence when every analyzed pair has good/usable geometry. Return to Step 8 and reviewer-select at least one high-change pair whose geometry is classified as `poor`, then overwrite and rerun AMD analysis.
 
-```text
-Confirmed threshold: 0.62
-Uncertain threshold: 0.70
-```
+### `xFormers is not available`
 
-Then click **Regenerate Change Triage**.
+This is a performance warning, not an inference failure. Confirm that all requested pairs completed and that the result archive was downloaded.
 
-### Reinspection geometry is poor
+### COLMAP metrics differ slightly
 
-Use a follow-up video that:
+Sparse reconstruction can vary with COLMAP version, CPU, threading, and numerical order. Use the acceptance criteria rather than requiring an identical sparse-point count.
 
-- approaches the same target area
-- includes wider context before the close view
-- avoids fast rotation and heavy blur
-- keeps the target visible for multiple frames
+## 13. Generated artifacts
 
-The submitted implementation also supports change-tolerant reacquisition through the initial inspection view.
-
----
-
-## 13. Generated Artifacts
-
-Typical output hierarchy:
+Typical outputs include:
 
 ```text
 baseline/<BASELINE_ID>/
@@ -827,76 +647,60 @@ baseline/<BASELINE_ID>/
 ├─ video/
 ├─ telemetry/
 ├─ localization/
-├─ pair_refinement/
-├─ amd_analysis/
-├─ change_triage/
+├─ change_detection/
+│  └─ <BASELINE_ID>/
+│     ├─ pair_refinement/
+│     ├─ amd_analysis/
+│     └─ change_triage/
 ├─ reinspection/
 └─ reports/
 ```
 
-Important artifacts include:
+Important artifacts include baseline/localization summaries, refined-pair CSV, AMD package/result archives, score CSV/JSON, reinspection mission/result JSON, and final JSON/Markdown/HTML reports.
 
-- baseline summary JSON
-- localization summary JSON
-- pose candidates CSV
-- refined pairs CSV
-- refinement summary JSON
-- AMD package and result ZIPs
-- DINOv2 score CSV/JSON
-- change-triage JSON
-- reinspection mission JSON
-- reinspection result JSON
-- final JSON, Markdown, and HTML reports
-
----
-
-## 14. Security and Privacy
+## 14. Security and privacy
 
 Never commit:
 
 ```text
 SSH private keys
-Real Radeon Cloud host and port
+Real Radeon Cloud host or port
+Cloud tokens or credentials
 Personal absolute paths
-Cloud credentials or tokens
+Raw DJI flight records containing identifiers
 Private source videos without consent
-Generated caches and virtual environments
-Large checkpoints
+Virtual environments or caches
+DINOv2 checkpoints
+Generated COLMAP/AMD archives
 ```
 
-Use the supplied example configuration files.
+The demonstration contains no employer data, employer code, confidential factory information, or company-owned assets. Source footage was captured by the participant in a private indoor environment.
 
-The demonstration contains no employer data, employer code, confidential factory data, or company-owned assets. The project data were captured in the participant's private indoor environment.
+## 15. Known limitations
 
----
-
-## 15. Known Limitations
-
-- The COLMAP coordinate system uses relative scale, not calibrated metres.
-- The spatial mission map is approximate and is not a collision-free navigation map.
+- COLMAP scale is relative, not calibrated metric scale.
+- The 3D mission map is approximate and not a collision-free navigation map.
 - Homography is a planar approximation.
 - Localization depends on texture, overlap, lighting, and motion blur.
-- Triage thresholds are demonstration policies, not probabilities.
-- The current dataset is a proof of concept, not a statistically calibrated industrial benchmark.
-- The drone and reinspection flight remain human-guided.
+- DINOv2 scores and triage thresholds are not probabilities.
+- The current dataset is a proof of concept, not an industrial benchmark.
+- Drone operation and reinspection remain human-guided.
 - FactoryFly reports visual change; it does not infer defect class or safety severity.
-
----
+- Telemetry is registered but not parsed or used for localization in v7.3.13.
 
 ## 16. Team
 
-**Jaewon Lee — Solo Developer**
+**Jaewon Lee - Solo Developer**
 
-Contributions include problem definition, system architecture, private data collection, COLMAP integration, geometry refinement, AMD Radeon Cloud and ROCm integration, DINOv2 inference workflow, triage, targeted reinspection, Streamlit UI, reporting, testing, and documentation.
+Contributions include problem definition, architecture, private data collection, COLMAP integration, geometry refinement, AMD Radeon Cloud/ROCm integration, DINOv2 inference, triage, targeted reinspection, Streamlit UI, reporting, testing, and documentation.
 
-AI-assisted development tools were used under the participant's direction for code drafting, debugging support, and documentation. The participant performed the project-specific architecture decisions, data collection, integration, execution, verification, and final submission.
+AI-assisted development tools were used under the participant's direction for drafting, debugging support, and documentation. The participant performed the project-specific design decisions, data collection, integration, execution, verification, and final submission.
 
----
-
-## 17. Additional Documentation
+## 17. Additional documentation
 
 - Technical report: `docs/FactoryFly_Sentinel_Technical_Report.pdf`
+- Clean validation record: `docs/CLEAN_REPRODUCTION_VALIDATION.md`
 - Sample final report: `expected_results/final_change_report.html`
-- Sample-data instructions: `sample_data/README.md`
+- Sample-data guidance: `sample_data/README.md`
 - Local dependencies: `requirements-local.txt`
 - Radeon dependencies: `requirements-rocm.txt`

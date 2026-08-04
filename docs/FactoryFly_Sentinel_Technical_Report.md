@@ -5,7 +5,7 @@
 AMD AI DevMaster Hackathon 2026 - Track 3  
 **Author:** Jaewon Lee  
 **Team:** Solo participant  
-**Date:** 4 August 2026  
+**Date:** 5 August 2026  
 **Prototype version:** v7.3.13
 
 > FactoryFly Sentinel converts repeated human-operated drone inspections into localized visual-change evidence, routes uncertain observations to targeted reinspection, and produces a self-contained report for human review.
@@ -16,7 +16,7 @@ Industrial inspection teams can collect large volumes of RGB video, but reviewin
 
 The system builds a COLMAP-based 3D baseline from a reference flight, localizes a later inspection inside the same coordinate system, geometrically aligns comparable views, and sends geometry-ready image pairs to an AMD Radeon GPU on Radeon Cloud. A pretrained open-source DINOv2 ViT-S/14 model runs through PyTorch and ROCm to produce relative semantic-change heatmaps and scores. FactoryFly then clears stable observations, records well-supported changes, and converts geometrically uncertain high-change evidence into a targeted reinspection mission. The follow-up view is reacquired and analyzed again to determine whether the visual change persists.
 
-The demonstrated run produced 18 analyzed evidence entries, automatically cleared 10 stable observations, recorded 4 confirmed visual findings, executed 1 targeted reinspection, and ended with 0 unresolved findings. The reinspection target was reacquired with **good** geometry; the initial p95 score was **0.866** and the reinspection p95 score was **0.860**, supporting a persistent visual change.
+The final clean run analyzed 13 image pairs (12 automatic geometry-ready pairs and 1 reviewer-selected poor-geometry pair), automatically cleared 7 localized stable observations, recorded 4 confirmed visual findings, executed 1 targeted reinspection, and ended with 0 unresolved findings. The reinspection target was reacquired with **good** geometry; the initial p95 score was **0.865** and the reinspection p95 score was **0.859**, supporting a persistent visual change.
 
 All demonstration data were self-collected in a private indoor environment. No employer data, employer code, confidential factory information, or proprietary company assets are included.
 
@@ -115,7 +115,7 @@ No model training or fine-tuning was performed. The dataset was used only for re
 | Baseline | Sampled frames | 158 |
 | Baseline | Registered cameras | 91 |
 | Baseline | Registration rate | 57.59% |
-| Baseline | Sparse 3D points | 5,499 |
+| Baseline | Sparse 3D points | 5,438 |
 | Inspection localization | Input frames | 47 |
 | Inspection localization | Registered frames | 18 |
 | Inspection localization | Registration rate | 38.3% |
@@ -271,8 +271,8 @@ DINOv2 feature extraction is the most computationally intensive AI component in 
 
 | Metric | Result |
 |---|---:|
-| Analyzed evidence entries | 18 |
-| Stable observations automatically cleared | 10 |
+| Analyzed image pairs | 13 |
+| Stable localized observations automatically cleared | 7 |
 | Confirmed visual findings | 4 |
 | Targeted reinspections | 1 |
 | Cleared after reinspection | 0 |
@@ -280,13 +280,13 @@ DINOv2 feature extraction is the most computationally intensive AI component in 
 
 ### 6.2 Reinspection Result
 
-The uncertain evidence cluster covering inspection frames 21-23 was linked to baseline frames 81-82 and routed to reinspection.
+A reviewer-selected high-change pair with poor initial geometry was routed to targeted reinspection. Frame, cluster, and mission identifiers are generated per run and are intentionally not treated as fixed reproducibility parameters.
 
 | Reinspection metric | Result |
 |---|---:|
 | Reacquisition geometry | Good |
-| Initial p95 | 0.866 |
-| Reinspection p95 | 0.860 |
+| Initial p95 | 0.865 |
+| Reinspection p95 | 0.859 |
 | Final result | Persistent visual change confirmed |
 
 The p95 score changed by only 0.006, approximately 0.7% relative to the initial value. Together with good reacquisition geometry, this supports the conclusion that the visual change remained observable after targeted follow-up.
